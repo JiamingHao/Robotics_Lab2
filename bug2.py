@@ -29,7 +29,7 @@ def scan_callback(msg):
 class Bug2():
 	def __init__(self):
 		scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
-		cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=5)
+		self.cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=5)
 		rospy.init_node('bug2', anonymous=False)
 		rospy.on_shutdown(self.shutdown)
 		
@@ -39,21 +39,22 @@ class Bug2():
 		
 		
 		try:
-            self.tf_listener.waitForTransform(self.odom_frame, '/base_footprint', rospy.Time(), rospy.Duration(1.0))
-            self.base_frame = '/base_footprint'
-        except (tf.Exception, tf.ConnectivityException, tf.LookupException):
-            try:
-                self.tf_listener.waitForTransform(self.odom_frame, '/base_link', rospy.Time(), rospy.Duration(1.0))
-                self.base_frame = '/base_link'
-            except (tf.Exception, tf.ConnectivityException, tf.LookupException):
-                rospy.loginfo("Cannot find transform between /odom and /base_link or /base_footprint")
-                rospy.signal_shutdown("tf Exception")  
+            		self.tf_listener.waitForTransform(self.odom_frame, '/base_footprint', rospy.Time(), rospy.Duration(1.0))
+            		self.base_frame = '/base_footprint'
+        	except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+            		try:
+                		self.tf_listener.waitForTransform(self.odom_frame, '/base_link', rospy.Time(), rospy.Duration(1.0))
+                		self.base_frame = '/base_link'
+            		except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+                		rospy.loginfo("Cannot find transform between /odom and /base_link or /base_footprint")
+                		rospy.signal_shutdown("tf Exception")  
 				
 		self.position = Point()
 		(self.position, self.rotation) = self.get_odom()
 		self.x_start = self.position.x
 		self.y_start = self.position.y
-		
+	
+		rospy.spin()
 		'''while not rospy.is_shutdown():
 			if self.whether_on_mline and range_center > 0.8:
 				# move the robot along the m_line
@@ -75,14 +76,14 @@ class Bug2():
 			
 		
 	def get_odom(self):
-        # Get the current transform between the odom and base frames
-        try:
-            (trans, rot)  = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
-        except (tf.Exception, tf.ConnectivityException, tf.LookupException):
-            rospy.loginfo("TF Exception")
-            return
+        	# Get the current transform between the odom and base frames
+        	try:
+            		(trans, rot)  = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
+        	except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+            		rospy.loginfo("TF Exception")
+            		return
 
-        return (Point(*trans), quat_to_angle(Quaternion(*rot)))
+        	return (Point(*trans), quat_to_angle(Quaternion(*rot)))
 	
 	def whether_on_mline(self):
 		if self.position.x <= 10 and self.position.x >= 0 and self.position.y == 0:
@@ -95,8 +96,8 @@ class Bug2():
 	def shutdown(self):
 		# Always stop the robot when shutting down the node.
 		rospy.loginfo("Stopping the robot...")
-        self.cmd_vel.publish(Twist())
-        rospy.sleep(1)
+        	self.cmd_vel_pub.publish(Twist())
+        	rospy.sleep(1)
 		
 if __name__ == "__main__":
 	robot = Bug2()
