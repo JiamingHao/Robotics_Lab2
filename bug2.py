@@ -18,6 +18,10 @@ motion_to_goal = True
 boundary_following = False
 
 def scan_callback(msg):
+	global range_center
+	global range_left
+	global range_right
+	
 	range_center = msg.ranges[len(msg.ranges)/2]
 	range_left = msg.ranges[len(msg.ranges)-1]
 	range_right = msg.ranges[0]
