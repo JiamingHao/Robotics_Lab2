@@ -8,7 +8,7 @@ from sensor_msgs.msg import LaserScan
 
 # Constants
 GOAL = 10
-LINEAR_SPEED = 0.15
+LINEAR_SPEED = 0.6
 ANGULAR_SPEED = 0.5
 
 range_center = 0
@@ -32,6 +32,11 @@ def scan_callback(msg):
 	
 class Bug2():
 	def __init__(self):
+		global range_center
+		global range_left
+		global range_right
+		global LINEAR_SPEED
+		
 		scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
 		self.cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=5)
 		rospy.init_node('bug2', anonymous=False)
@@ -40,7 +45,7 @@ class Bug2():
 		self.tf_listener = tf.TransformListener()
 		rospy.sleep(2)
 		self.odom_frame = '/odom'
-		
+		rate = rospy.Rate(10)
 		
 		try:
             		self.tf_listener.waitForTransform(self.odom_frame, '/base_footprint', rospy.Time(), rospy.Duration(1.0))
@@ -57,21 +62,33 @@ class Bug2():
 		(self.position, self.rotation) = self.get_odom()
 		self.x_start = self.position.x
 		self.y_start = self.position.y
+		self.x_current = self.x_start
+		self.y_current = self.y_start
 		
 		print "x_start: ", self.x_start
 		print "y_start: ", self.y_start
 
-		while True:
+		'''while True:
 			rospy.sleep(2)
 			location = Point()
 			location = self.get_odom()[0]
 			print "current_x: ", location.x
-			print "current_y: ", location.y
+			print "current_y: ", location.y'''
 
-		rospy.spin()
-		'''while not rospy.is_shutdown():
-			if self.whether_on_mline and range_center > 0.8:
+		
+		while not rospy.is_shutdown():
+			if self.whether_on_mline and range_center > 0.8 and not self.is_at_goal:
 				# move the robot along the m_line
+				move_cmd = Twist()
+				move_cmd.linear.x  = LINEAR_SPEED
+				self.cmd_vel_pub.publish(move_cmd)
+				
+				rate.sleep()
+				
+				# update x_current and y_current
+				x_current = self.get_odom()[0].x
+				y_current = self.get_odom()[0].y
+				
 			else:
 				motion_to_goal = False
 				boundary_following = True
@@ -85,7 +102,7 @@ class Bug2():
 						
 						if isnan(range_right):
 							
-							break'''
+							break
 						
 			
 		
@@ -100,12 +117,13 @@ class Bug2():
         	return (Point(*trans), quat_to_angle(Quaternion(*rot)))
 	
 	def whether_on_mline(self):
-		if self.position.x <= 10 and self.position.x >= 0 and self.position.y == 0:
+		if self.x_current <= 10 and self.x_current >= 0 and self.y_current == 0:
 			return True
 		else:
 			return False
 			
-	
+	def is_at_goal(self):
+		return False
 	
 	def shutdown(self):
 		# Always stop the robot when shutting down the node.
