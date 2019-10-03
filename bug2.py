@@ -21,9 +21,9 @@ def scan_callback(msg):
 	range_center = msg.ranges[len(msg.ranges)/2]
 	range_left = msg.ranges[len(msg.ranges)-1]
 	range_right = msg.ranges[0]
-	print "range_center: ", range_center
-	print "range_left ", range_left
-	print "range_right", range_right
+	#print "range_center: ", range_center
+	#print "range_left ", range_left
+	#print "range_right", range_right
 	
 	
 class Bug2():
@@ -53,7 +53,17 @@ class Bug2():
 		(self.position, self.rotation) = self.get_odom()
 		self.x_start = self.position.x
 		self.y_start = self.position.y
-	
+		
+		print "x_start: ", self.x_start
+		print "y_start: ", self.y_start
+
+		while True:
+			rospy.sleep(2)
+			location = Point()
+			location = self.get_odom()[0]
+			print "current_x: ", location.x
+			print "current_y: ", location.y
+
 		rospy.spin()
 		'''while not rospy.is_shutdown():
 			if self.whether_on_mline and range_center > 0.8:
