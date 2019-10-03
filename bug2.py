@@ -21,14 +21,18 @@ def scan_callback(msg):
 	range_center = msg.ranges[len(msg.ranges)/2]
 	range_left = msg.ranges[len(msg.ranges)-1]
 	range_right = msg.ranges[0]
+	print "range_center: ", range_center
+	print "range_left ", range_left
+	print "range_right", range_right
 	
 	
 class Bug2():
 	def __init__(self):
 		scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
-		cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=5)
+		cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=5)
 		rospy.init_node('bug2', anonymous=False)
 		rospy.on_shutdown(self.shutdown)
+		
 		self.tf_listener = tf.TransformListener()
 		rospy.sleep(2)
 		self.odom_frame = '/odom'
@@ -50,7 +54,7 @@ class Bug2():
 		self.x_start = self.position.x
 		self.y_start = self.position.y
 		
-		while not rospy.is_shutdown():
+		'''while not rospy.is_shutdown():
 			if self.whether_on_mline and range_center > 0.8:
 				# move the robot along the m_line
 			else:
@@ -66,7 +70,7 @@ class Bug2():
 						
 						if isnan(range_right):
 							
-							break
+							break'''
 						
 			
 		
@@ -93,3 +97,6 @@ class Bug2():
 		rospy.loginfo("Stopping the robot...")
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
+		
+if __name__ == "__main__":
+	robot = Bug2()
