@@ -5,12 +5,13 @@ from tf import transformations
 from rbx1_nav.transform_utils import quat_to_angle, normalize_angle
 from math import radians, copysign, sqrt, pow, pi, isnan
 from sensor_msgs.msg import LaserScan
+from nav_msgs.msg import Odometry
 
 import math
 
 # Some global variables
 yaw_ = 0
-yaw_error_allowed_ = 5 * (math.pi / 180) # 5 degrees
+yaw_precision_ = 5 * (math.pi / 180) # 5 degrees
 dist_precision_ = 0.3
 # robot current position
 position_ = Point()
@@ -97,19 +98,20 @@ between motion_to_goal and  boundary_following mode. It just adjusts the yaw,
 when the yaw is no longer needed to be adjusted, it set  motion_to_goal_state
 properly, then the motion_to_goal mode will switch to go_straight_ahead submode'''
 def fix_yaw(des_pos):
-	global yaw_, pub_, yaw_precision_
+	print "#### Fix yaw!!!!"
+	global yaw_, pub_, yaw_precision_, motion_to_goal_state
 	
 	# use arctan to calculate the correct angle towards the goal
 	desired_yaw = math.atan2(des_pos.y - position_.y, des_pos.x - position_.x)
 	err_yaw = desired_yaw - yaw_
     
 	twist_msg = Twist()
-    
+ 	print "err_yaw: ", math.fabs(err_yaw)
+	print "yaw_precision: ", yaw_precision_   
 	if math.fabs(err_yaw) > yaw_precision_:
-        	twist_msg.angular.z = 0.3 if err_yaw > 0 else -0.3
-    
-	# this action will only rotate the robot(won't move the roboy)
-	pub_.publish(twist_msg)
+        	twist_msg.angular.z = -0.3 if err_yaw > 0 else 0.3
+    		# this action will only rotate the robot(won't move the roboy)
+		pub_.publish(twist_msg)
     
 	# state change conditions
 	if math.fabs(err_yaw) <= yaw_precision_:
@@ -145,16 +147,18 @@ def go_straight_ahead(des_pos):
 		# do not forget to record the hitpoint 
 		hit_position_ = position_
 		
+		print "Change state_ to 1 because obstacle ahead"
 		state_ = 1 # this controls the outer loop, switch to follow boundary mode 
+		return
     
 	'''If there is no obstacle appeared yet, calculate the distance from the current position to
 	   the goal'''
 	# if the robot still hasn't reached the goal
-	elif err_pos > dist_precision_:
+	if  err_pos > dist_precision_:
 		twist_msg = Twist()
 		twist_msg.linear.x = 0.3
 		pub_.publish(twist_msg)
-    
+    		return
 	else:
         	print 'Position error: [%s]' % err_pos
 		# reached the goal
@@ -197,6 +201,7 @@ def distance_to_line(p0):
    from the above two cases, the robot will continue to follow the boundary and state_ keeps being 1
 '''
 def execute_follow_boundary():
+	global state_
 	global regions_, position_, hit_position_, dist_precision_
 	global pub_
 	regions = regions_
@@ -209,48 +214,79 @@ def execute_follow_boundary():
 	# if the robot hits the m line, switch back to motion_to_goal mode
 	dist_from_hit = math.sqrt(pow(hit_position_.y - position_.y, 2) + pow(hit_position_.x - position_.x, 2))
 	
-	if distance_position_to_line < 0.1:
+	print "current position: ", position_
+	print "hit position: ", hit_position_
+	if distance_position_to_line < 0.1 and abs(position_.x - hit_position_.x) > 0.01 and abs(position_.y - hit_position_.y) > 0.01:
+		print "Change state_ to 0 because distance_position_to_line"
 		state_ = 0
 		return 
-	elif dist_from_hit <= dist_precision_:
+	elif dist_from_hit <= dist_precision_ and dist_from_hit > 0.1:
+		print "dist_from_hit", dist_from_hit
 		state_ = 3 # no paths found
 		return 
 	
 	d = 1
-	if regions['front'] > d and regions['fleft'] > d and regions['fright'] > d:
-        	state_description = 'case 1 - No obstacle sensed at all'
+	if (regions['front'] > d or math.isnan(regions['front'])) and \
+		(regions['fleft'] > d or math.isnan(regions['fleft'])) and \
+		(regions['fright'] > d or math.isnan(regions['fright'])):
+        	
+		state_description = 'case 1 - No obstacle sensed at all'
         	pub_.publish(find_wall())
-	elif regions['front'] < d and regions['fleft'] > d and regions['fright'] > d:
-        	state_description = 'case 2 - Sensed obstacle in front, but nothing on left and right'
+
+	elif regions['front'] < d and (regions['fleft'] > d or math.isnan(regions['fleft'])) and \
+		(regions['fright'] > d or math.isnan(regions['fright'])):
+        	
+		state_description = 'case 2 - Sensed obstacle in front, but nothing on left and right'
 		# let robot turn left
 		pub_.publish(turn_left())
-    	elif regions['front'] > d and regions['fleft'] > d and regions['fright'] < d:
-        	state_description = 'case 3 - Sensed obstacle on right side, nothing in front and left'
+
+    	elif (regions['front'] > d or math.isnan(regions['front'])) and \
+		(regions['fleft'] > d or math.isnan(regions['fleft'])) and \
+		regions['fright'] < d:
+        	
+		state_description = 'case 3 - Sensed obstacle on right side, nothing in front and left'
 		# let robot follow the boundary
 		pub_.publish(follow_the_wall())
-    	elif regions['front'] > d and regions['fleft'] < d and regions['fright'] > d:
+
+    	elif (regions['front'] > d or math.isnan(regions['front'])) and \
+		regions['fleft'] < d and \
+		(regions['fright'] > d or math.isnan(regions['fright'])):
+
         	state_description = 'case 4 - Sensed obstacle on the left side, nothing in front and right'
 		# let robot find the wall, namely go ahead and at the same time, slightly turning right
 		pub_.publish(find_wall())
-    	elif regions['front'] < d and regions['fleft'] > d and regions['fright'] < d:
+
+    	elif regions['front'] < d and \
+		(regions['fleft'] > d or math.isnan(regions['fleft'])) and \
+		regions['fright'] < d:
+
         	state_description = 'case 5 - Sensed obstacle in front and right, nothing in left'
 		# let robot turn left
 		pub_.publish(turn_left())
-    	elif regions['front'] < d and regions['fleft'] < d and regions['fright'] > d:
+
+    	elif regions['front'] < d and \
+		regions['fleft'] < d and \
+		(regions['fright'] > d or math.isnan(regions['fright'])):
+
         	state_description = 'case 6 - Sensed obstacle in front and left, nothing in right'
 		# let robot turn left
 		pub_.publish(turn_left())
-    	elif regions['front'] < d and regions['fleft'] < d and regions['fright'] < d:
+
+  	elif regions['front'] < d and regions['fleft'] < d and regions['fright'] < d:
         	state_description = 'case 7 - Sensed obstalce in front, left an right'
 		# let robot turn left
 		pub_.publish(turn_left())
-    	elif regions['front'] > d and regions['fleft'] < d and regions['fright'] < d:
+
+    	elif (regions['front'] > d or math.isnan(regions['front'])) and \
+		regions['fleft'] < d and \
+		regions['fright'] < d:
         	state_description = 'case 8 - Sensed obtacle in right and left, nothing in front'
 		# let robot find the wall
 		pub_.publish(find_wall())
     	else:
         	state_description = 'ERROR: unknown case'
         	rospy.loginfo(regions) # for debug purpose
+	print state_description
 	return 
 	
 '''Find the wall action actually contains the right side roatation while moving forward'''
@@ -320,8 +356,8 @@ def main():
 			
 		else:
 			print "Unknown state",state_
-
-		rospy.loginfo("distance to line: [%.2f], position: [%.2f, %.2f]", distance_to_line(position_), position_.x, position_.y)
+		print "state_: ", state_
+		#rospy.loginfo("distance to line: [%.2f], position: [%.2f, %.2f]", distance_to_line(position_), position_.x, position_.y)
         	rate.sleep()
 	
 if __name__ == '__main__':
