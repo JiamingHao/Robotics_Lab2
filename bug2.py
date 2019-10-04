@@ -17,19 +17,21 @@ position_ = Point()
 #publishers
 pub_ = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=1)
 #rate 
-rate = rospy.Rate(20)
+rate = rospy.Rate(20) 
 
+#start point
 initial_position_ = Point()
 initial_position_.x = 0
 initial_position_.y = 0
 initial_position_.z = 0
 
+#goal point
 desired_position_ = Point()
 desired_position_.x = 10
 desired_position_.y = 0
 desired_position_.z = 0
 
-
+# where the robot encountered the obstacle
 hit_position_ = Point()
 
 
@@ -75,18 +77,20 @@ def clbk_odom(msg):
 	
 def clbk_laser(msg):
     global regions_
+	'''the len of msg.range is 640, the range of the angle is from -30 degree to 
+	   30 degree 640/5 = 128'''
     regions_ = {
-        'right':  min(min(msg.ranges[0:143]), 10),
-        'fright': min(min(msg.ranges[144:287]), 10),
-        'front':  min(min(msg.ranges[288:431]), 10),
-        'fleft':  min(min(msg.ranges[432:575]), 10),
-        'left':   min(min(msg.ranges[576:719]), 10),
+        'right':  min(min(msg.ranges[0:128]), 10),
+        'fright': min(min(msg.ranges[128:256]), 10),
+        'front':  min(min(msg.ranges[256:384]), 10),
+        'fleft':  min(min(msg.ranges[384:512]), 10),
+        'left':   min(min(msg.ranges[512:640]), 10),
     }
 
 '''fix_yaw won't modify the state_, namely itself cannot control the switch 
-   between motion_to_goal and  boundary_following mode. It adjust the yaw,
+   between motion_to_goal and  boundary_following mode. It just adjusts the yaw,
    when the yaw is no longer needed to be adjusted, it set  motion_to_goal_state
-   properly, then the motion_to_goal mode will execute go_straight_ahead submode'''
+   properly, then the motion_to_goal mode will switch to go_straight_ahead submode'''
 def fix_yaw(des_pos):
     global yaw_, pub_, yaw_precision_
     desired_yaw = math.atan2(des_pos.y - position_.y, des_pos.x - position_.x)
@@ -271,7 +275,7 @@ def main():
 
     rospy.init_node('bug2')
 
-    sub_laser = rospy.Subscriber('/m2wr/laser/scan', LaserScan, clbk_laser)
+    sub_laser = rospy.Subscriber('scan', LaserScan, clbk_laser)
     sub_odom = rospy.Subscriber('/odom', Odometry, clbk_odom)
 
 	
