@@ -55,9 +55,9 @@ motion_to_goal_state = 0
 #------------------------------------
 boundary_following_state = 0
 # boundary_following_state:
-#			    0:need to find the boundary
-#                           1:turn left
-#                           2:need to follow the boundary
+#			    0 - need to find the boundary
+#                           1 - turn left
+#                           2 - need to follow the boundary
 #
 #--------------------------------------
 
@@ -106,7 +106,7 @@ def fix_yaw(des_pos):
 	twist_msg = Twist()
     
 	if math.fabs(err_yaw) > yaw_precision_:
-        twist_msg.angular.z = 0.3 if err_yaw > 0 else -0.3
+        	twist_msg.angular.z = 0.3 if err_yaw > 0 else -0.3
     
 	# this action will only rotate the robot(won't move the roboy)
 	pub_.publish(twist_msg)
@@ -156,10 +156,10 @@ def go_straight_ahead(des_pos):
 		pub_.publish(twist_msg)
     
 	else:
-        print 'Position error: [%s]' % err_pos
+        	print 'Position error: [%s]' % err_pos
 		# reached the goal
-        state_ = 2
-		
+        	state_ = 2
+		return 
     
 	# state change conditions
 	if math.fabs(err_yaw) > yaw_precision_:
@@ -324,14 +324,5 @@ def main():
 		rospy.loginfo("distance to line: [%.2f], position: [%.2f, %.2f]", distance_to_line(position_), position_.x, position_.y)
         	rate.sleep()
 	
-	
-			print "No paths found!"
-			break
-			
-		else:
-			print "Unknown state",state_
-
-		rospy.loginfo("distance to line: [%.2f], position: [%.2f, %.2f]", distance_to_line(position_), position_.x, position_.y)
-        	rate.sleep()
-	
-	
+if __name__ == '__main__':
+	main()	
