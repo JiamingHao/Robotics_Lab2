@@ -325,3 +325,13 @@ def main():
         	rate.sleep()
 	
 	
+			print "No paths found!"
+			break
+			
+		else:
+			print "Unknown state",state_
+
+		rospy.loginfo("distance to line: [%.2f], position: [%.2f, %.2f]", distance_to_line(position_), position_.x, position_.y)
+        rate.sleep()
+	
+	
